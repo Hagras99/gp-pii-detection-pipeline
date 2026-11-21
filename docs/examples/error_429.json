@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "The LLM provider rate limit was reached. Try again later.",
+    "retry_after_s": 20,
+    "details": null
+  }
+}

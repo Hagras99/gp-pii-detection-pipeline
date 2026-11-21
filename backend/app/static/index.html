@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Gateway</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#f1f5f4;color:#18332d;font:16px system-ui,sans-serif} main{max-width:960px;margin:0 auto;padding:54px 22px} h1{margin:0;font-size:clamp(2rem,6vw,3.25rem);letter-spacing:-.045em} p{color:#435d56} form,section{background:#fff;border:1px solid #d4e2dd;border-radius:14px;padding:20px} label,h2{font-size:1rem;font-weight:700} textarea{display:block;width:100%;margin:10px 0 14px;min-height:124px;resize:vertical;padding:12px;font:inherit;border:1px solid #a5bcb4;border-radius:8px} button{padding:10px 16px;font:inherit;font-weight:650;border:0;border-radius:8px;background:#145b49;color:#fff;cursor:pointer} button[type=button]{background:#e4efeb;color:#18332d} button:disabled{opacity:.55} .actions{display:flex;gap:8px;flex-wrap:wrap} #results{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,255px),1fr));gap:12px} #results[hidden]{display:none} h2{margin:0 0 10px} pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font:inherit} #status{min-height:1.5em} .note{font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Privacy Gateway</h1>
+<p>Try Arabic or English text and inspect what the local demo provider receives.</p>
+<form id="form">
+<label for="prompt">Your prompt</label>
+<textarea id="prompt" dir="auto" maxlength="20000" required placeholder="Enter a prompt with a sample email or Egyptian mobile number"></textarea>
+<div class="actions"><button id="run">Run demo</button><button id="example" type="button">Load example</button></div>
+<p class="note">This demo uses format rules. It restores emails locally and leaves other detected values masked.</p>
+</form>
+<p id="status" role="status"></p>
+<div id="results" hidden>
+<section><h2>Sent to provider</h2><pre id="sanitized" dir="auto"></pre></section>
+<section><h2>Provider reply</h2><pre id="provider" dir="auto"></pre></section>
+<section><h2>Local reply</h2><pre id="local" dir="auto"></pre></section>
+</div>
+</main>
+<script>
+const get = (id) => document.getElementById(id);
+get("example").onclick = () => {
+  get("prompt").value = "راجع الطلب وابعت الرد على mona@example.com أو اتصل على ٠١٠١٢٣٤٥٦٧٨.";
+  get("prompt").focus();
+};
+get("form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  get("run").disabled = true;
+  get("results").hidden = true;
+  get("status").textContent = "Checking prompt…";
+  try {
+    const response = await fetch("/poc/run", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({prompt: get("prompt").value})
+    });
+    if (!response.ok) throw new Error("Request failed");
+    const result = await response.json();
+    get("sanitized").textContent = result.sanitized_prompt;
+    get("provider").textContent = result.provider_reply;
+    get("local").textContent = result.local_reply;
+    get("status").textContent = `${result.entities.length} detected values masked.`;
+    get("results").hidden = false;
+  } catch {
+    get("status").textContent = "The demo could not process this prompt. Try again.";
+  } finally {
+    get("run").disabled = false;
+  }
+});
+</script>
+</body>
+</html>

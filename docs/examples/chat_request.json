@@ -1,0 +1,7 @@
+{
+  "prompt": "هل قرض بقيمة 250,000 جنيه مناسب لمنى عادل التي دخلها 20,000 جنيه؟ الرقم القومي ٢٩٠٠١٠١٠١٢٣٤٤٦.",
+  "options": {
+    "name_strategy": "placeholder",
+    "decide_mode": "task_aware"
+  }
+}

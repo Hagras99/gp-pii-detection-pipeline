@@ -1,0 +1,632 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PII Gateway API (MOCK)",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sanitize": {
+      "post": {
+        "summary": "Sanitize",
+        "operationId": "sanitize_v1_sanitize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SanitizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SanitizeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat": {
+      "post": {
+        "summary": "Chat",
+        "operationId": "chat_v1_chat_post",
+        "parameters": [
+          {
+            "name": "x-mock-error",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Mock-Error"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Action": {
+        "type": "string",
+        "enum": [
+          "mask",
+          "keep"
+        ],
+        "title": "Action"
+      },
+      "ChatRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query",
+            "description": "The user's task, if separate from the prompt body. If omitted, the whole prompt is the query."
+          },
+          "options": {
+            "$ref": "#/components/schemas/Options"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "LLM id; the server default is used if omitted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "ChatRequest"
+      },
+      "ChatResponse": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "contract_version": {
+            "type": "string",
+            "title": "Contract Version",
+            "default": "0.1.0"
+          },
+          "sanitized_prompt": {
+            "type": "string",
+            "title": "Sanitized Prompt"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            },
+            "type": "array",
+            "title": "Entities"
+          },
+          "latency_ms": {
+            "$ref": "#/components/schemas/LatencyMs"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "llm_response_masked": {
+            "type": "string",
+            "title": "Llm Response Masked",
+            "description": "What the LLM actually returned (contains placeholders / fakes)."
+          },
+          "llm_response_restored": {
+            "type": "string",
+            "title": "Llm Response Restored",
+            "description": "The answer shown to the user, with real values restored."
+          },
+          "guard": {
+            "$ref": "#/components/schemas/GuardReport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "sanitized_prompt",
+          "entities",
+          "latency_ms",
+          "model",
+          "llm_response_masked",
+          "llm_response_restored"
+        ],
+        "title": "ChatResponse"
+      },
+      "DetectionSource": {
+        "type": "string",
+        "enum": [
+          "rules",
+          "lexicon",
+          "presidio",
+          "ner"
+        ],
+        "title": "DetectionSource"
+      },
+      "Entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Stable within one response, e.g. 'e1'."
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "End"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The original text, equal to prompt[start:end]."
+          },
+          "type": {
+            "$ref": "#/components/schemas/EntityType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/DetectionSource"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "action": {
+            "$ref": "#/components/schemas/Action"
+          },
+          "replacement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replacement"
+          },
+          "replacement_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplacementKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start",
+          "end",
+          "text",
+          "type",
+          "source",
+          "score",
+          "action"
+        ],
+        "title": "Entity"
+      },
+      "EntityType": {
+        "type": "string",
+        "enum": [
+          "PERSON",
+          "EG_NATIONAL_ID",
+          "PHONE_NUMBER",
+          "EMAIL_ADDRESS",
+          "IBAN_CODE",
+          "CREDIT_CARD",
+          "ACCOUNT_NUMBER",
+          "AMOUNT",
+          "ORGANIZATION",
+          "LOCATION",
+          "EMPLOYEE_ID",
+          "CLIENT_ID",
+          "PROJECT_CODENAME",
+          "SECRET"
+        ],
+        "title": "EntityType"
+      },
+      "GuardReport": {
+        "properties": {
+          "placeholders_repaired": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Placeholders Repaired",
+            "description": "Damaged placeholders the guard fixed before restoring.",
+            "default": 0
+          },
+          "placeholders_unresolved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Placeholders Unresolved",
+            "description": "Placeholders it could not map back."
+          }
+        },
+        "type": "object",
+        "title": "GuardReport"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "mock",
+              "live"
+            ],
+            "title": "Mode"
+          },
+          "contract_version": {
+            "type": "string",
+            "title": "Contract Version",
+            "default": "0.1.0"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "HealthResponse"
+      },
+      "LatencyMs": {
+        "properties": {
+          "normalize": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Normalize"
+          },
+          "tier1": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tier1"
+          },
+          "tier2": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tier2"
+          },
+          "tier3": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tier3"
+          },
+          "merge": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Merge"
+          },
+          "decide": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Decide"
+          },
+          "replace": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Replace"
+          },
+          "llm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm",
+            "description": "null for /v1/sanitize"
+          },
+          "guard_restore": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Restore",
+            "description": "null for /v1/sanitize"
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "normalize",
+          "tier1",
+          "tier2",
+          "tier3",
+          "merge",
+          "decide",
+          "replace",
+          "total"
+        ],
+        "title": "LatencyMs"
+      },
+      "Options": {
+        "properties": {
+          "name_strategy": {
+            "type": "string",
+            "enum": [
+              "placeholder",
+              "pseudonym"
+            ],
+            "title": "Name Strategy",
+            "description": "How PERSON entities are replaced (the project's A/B experiment).",
+            "default": "placeholder"
+          },
+          "decide_mode": {
+            "type": "string",
+            "enum": [
+              "task_aware",
+              "mask_all"
+            ],
+            "title": "Decide Mode",
+            "description": "task_aware: keep values the LLM needs. mask_all: mask every detected entity.",
+            "default": "task_aware"
+          }
+        },
+        "type": "object",
+        "title": "Options"
+      },
+      "ReplacementKind": {
+        "type": "string",
+        "enum": [
+          "placeholder",
+          "pseudonym"
+        ],
+        "title": "ReplacementKind"
+      },
+      "SanitizeRequest": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query",
+            "description": "The user's task, if separate from the prompt body. If omitted, the whole prompt is the query."
+          },
+          "options": {
+            "$ref": "#/components/schemas/Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "SanitizeRequest"
+      },
+      "SanitizeResponse": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "contract_version": {
+            "type": "string",
+            "title": "Contract Version",
+            "default": "0.1.0"
+          },
+          "sanitized_prompt": {
+            "type": "string",
+            "title": "Sanitized Prompt"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            },
+            "type": "array",
+            "title": "Entities"
+          },
+          "latency_ms": {
+            "$ref": "#/components/schemas/LatencyMs"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "sanitized_prompt",
+          "entities",
+          "latency_ms"
+        ],
+        "title": "SanitizeResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
