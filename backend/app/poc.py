@@ -1,18 +1,32 @@
 """Local, single-turn privacy gateway demo."""
-import re
-from collections import Counter
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from .pipeline.gateway import run_gateway
+from .pipeline.lexicon import OrganizationLexicon
+from .pipeline.tier2_presidio import PresidioDetector
 from .pipeline.tier1_rules import Tier1Rules
-from .schemas import EntityType
+from .pipeline.tier3_bert import MODEL_ID, MultilingualBertDetector
+
+
+def build_detectors():
+    lexicon = OrganizationLexicon(os.getenv("PII_ORG_TERMS", "").split(","))
+    detectors = (Tier1Rules().detect, lexicon.detect)
+    if os.getenv("PII_TIER2_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}:
+        model = os.getenv("PII_TIER2_MODEL", "en_core_web_sm")
+        detectors += (PresidioDetector(model).detect,)
+    if os.getenv("PII_TIER3_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}:
+        model = os.getenv("PII_TIER3_MODEL", MODEL_ID)
+        detectors += (MultilingualBertDetector(model).detect,)
+    return detectors
+
 
 app = FastAPI(title="PII Gateway PoC")
-rules = Tier1Rules()
-token_pattern = re.compile(r"<[A-Z_]+_\d+>")
+detectors = build_detectors()
 
 
 class Prompt(BaseModel):
@@ -30,38 +44,4 @@ def index():
 
 @app.post("/poc/run")
 def run(request: Prompt):
-    prompt = request.prompt
-    counts = Counter()
-    reserved = set(token_pattern.findall(prompt))
-    replacements = {}
-    restore = {}
-    entities = []
-    parts = []
-    cursor = 0
-    for span in rules.detect(prompt):
-        original = prompt[span.start:span.end]
-        kind = span.type
-        key = (kind, original)
-        if key not in replacements:
-            while True:
-                counts[kind] += 1
-                token = f"<{kind.value}_{counts[kind]}>"
-                if token not in reserved:
-                    break
-            replacements[key] = token
-            if kind == EntityType.EMAIL_ADDRESS:
-                restore[token] = original
-        token = replacements[key]
-        parts.extend((prompt[cursor:span.start], token))
-        cursor = span.end
-        entities.append({"type": kind, "replacement": token})
-
-    parts.append(prompt[cursor:])
-    sanitized = "".join(parts)
-    provider_reply = demo_provider(sanitized)
-    return {
-        "sanitized_prompt": sanitized,
-        "provider_reply": provider_reply,
-        "local_reply": token_pattern.sub(lambda match: restore.get(match[0], match[0]), provider_reply),
-        "entities": entities,
-    }
+    return run_gateway(request.prompt, demo_provider, detectors)

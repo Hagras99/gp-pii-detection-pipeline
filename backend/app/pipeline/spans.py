@@ -26,7 +26,14 @@ class Span:
 
 
 def resolve_overlaps(spans: list[Span]) -> list[Span]:
-    """Greedy: highest score, then longest, then type priority. Keeps only non-overlapping spans."""
+    """Protect established spans from Tier 3, then rank by score, length and type."""
+    protected = [s for s in spans if s.source in (DetectionSource.rules, DetectionSource.lexicon)]
+    presidio_offsets = {(s.start, s.end) for s in spans if s.source == DetectionSource.presidio}
+    spans = [
+        s for s in spans
+        if s.source != DetectionSource.ner
+        or ((s.start, s.end) not in presidio_offsets and not any(s.overlaps(p) for p in protected))
+    ]
     ranked = sorted(spans, key=lambda s: (-s.score, -(s.end - s.start), _RANK.get(s.type, 99), s.start))
     chosen: list[Span] = []
     for s in ranked:
