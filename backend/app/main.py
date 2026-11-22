@@ -25,7 +25,7 @@ def build_detectors():
     return detectors
 
 
-app = FastAPI(title="PII Gateway PoC")
+app = FastAPI(title="PII Gateway")
 detectors = build_detectors()
 
 

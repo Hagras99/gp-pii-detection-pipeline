@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app import poc
+from app import main
 from app.pipeline.gateway import run_gateway
 from app.pipeline.spans import Span
 from app.schemas import DetectionSource, EntityType
@@ -51,14 +51,14 @@ def test_demo_tier2_opt_in_keeps_tier1_lexicon_and_restoration(monkeypatch, enab
                 Span(project, project + len("Project Cedar"), EntityType.PERSON, DetectionSource.presidio, 0.85),
             ]
 
-    monkeypatch.setattr(poc, "PresidioDetector", StubPresidio)
+    monkeypatch.setattr(main, "PresidioDetector", StubPresidio)
     monkeypatch.setenv("PII_TIER2_ENABLED", "1" if enabled else "0")
     monkeypatch.setenv("PII_TIER2_MODEL", "test_model")
     monkeypatch.setenv("PII_ORG_TERMS", "Project Cedar")
-    monkeypatch.setattr(poc, "detectors", poc.build_detectors())
+    monkeypatch.setattr(main, "detectors", main.build_detectors())
 
     prompt = "📌 Contact Jane Smith about Project Cedar at jane.smith@example.com."
-    response = TestClient(poc.app).post("/poc/run", json={"prompt": prompt})
+    response = TestClient(main.app).post("/poc/run", json={"prompt": prompt})
     assert response.status_code == 200
     result = response.json()
     name = "<PERSON_1>" if enabled else "Jane Smith"

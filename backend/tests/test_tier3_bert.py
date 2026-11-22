@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from app import poc
+from app import main
 from app.pipeline.spans import Span, resolve_overlaps
 from app.pipeline.tier3_bert import MODEL_ID, WINDOW_OVERLAP, MultilingualBertDetector
 from app.schemas import DetectionSource, EntityType
@@ -61,13 +61,13 @@ def test_demo_tier3_preserves_offsets_and_masks_and_restores(monkeypatch):
     monkeypatch.delenv("PII_TIER3_ENABLED", raising=False)
     monkeypatch.setenv("PII_TIER2_ENABLED", "0")
     monkeypatch.setenv("PII_ORG_TERMS", "Project Cedar")
-    assert len(poc.build_detectors()) == 2
+    assert len(main.build_detectors()) == 2
 
     monkeypatch.setenv("PII_TIER3_ENABLED", "1")
-    detectors = poc.build_detectors()
+    detectors = main.build_detectors()
     assert isinstance(detectors[-1].__self__, MultilingualBertDetector)
-    monkeypatch.setattr(poc, "detectors", detectors)
-    response = TestClient(poc.app).post("/poc/run", json={"prompt": prompt})
+    monkeypatch.setattr(main, "detectors", detectors)
+    response = TestClient(main.app).post("/poc/run", json={"prompt": prompt})
     assert response.status_code == 200
     result = response.json()
     sanitized = prefix + "أرسل ل<PERSON_1> في <PROJECT_CODENAME_1> عبر <EMAIL_ADDRESS_1>."
